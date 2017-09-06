@@ -1,6 +1,6 @@
 # KerasText: Text Processing Layers for Keras
 
-This package adds Keras ver. 2+ compliant layers for processing variable-szied text input, with support for masking.
+This package adds Keras ver. 2+ compliant layers for processing variable-sized text input, with support for masking.
 
 ## Compatibility
 
