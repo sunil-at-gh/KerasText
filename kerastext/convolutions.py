@@ -24,8 +24,9 @@ import keras.initializers
 from keras.engine import InputSpec
 from keras.utils import conv_utils
 
-# noinspection PyProtectedMember
-from keras.backend.tensorflow_backend import _to_tensor
+if K.backend() == 'tensorflow':
+    # noinspection PyProtectedMember
+    from keras.backend.tensorflow_backend import _to_tensor
 
 from .utils import force_masked_to_zero, gather_from_last_axis
 
