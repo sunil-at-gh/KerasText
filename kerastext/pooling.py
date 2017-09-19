@@ -59,32 +59,44 @@ class _KTextGlobalPooling(Layer):
             The value to use for masked inputs. This is also the value returned
             when all inputs in a vector are masked.
 
+        keepdims:
+            If this is set to True, the axes which are reduced are left in the result as dimensions with size one.
+            Default is False.
+
         terminate_mask:
             If True Then output-mask is always None. Default is False.
 
     # Input shape
-        N-D tensor with shape: `(samples, d2, ..., d[N-2], d[N-1], dN)`.
+        N-D tensor with shape: (samples, d2, ..., d[N-2], d[N-1], dN).
 
     # Output shape
-        (N-1)-D tensor  shape: `(samples, d2, ..., d[N-2], dN)`.
+        IF keepdims THEN:   N-D tensor shape (samples, d2, ..., d[N-2], 1, dN).
+        ELSE: (default) (N-1)-D tensor shape (samples, d2, ..., d[N-2], dN).
 
     # Input mask shape:  (samples, d2, ..., d[N-2], d[N-1])
-    # Output mask shape: (samples, d2, ..., d[N-2])
+    # Output mask shape:
+        IF keepdims THEN: (samples, d2, ..., d[N-2], 1)
+        ELSE: (default)   (samples, d2, ..., d[N-2])
+
          out_mask[ivec] = 0 only if For all j, in_mask[ivec, j] == 0
                         = 1  o/w
     """
 
-    def __init__(self, default_value=0.0, terminate_mask=False, **kwargs):
+    def __init__(self, default_value=0.0, keepdims=False, terminate_mask=False, **kwargs):
         super().__init__(**kwargs)
 
         self.default_value = default_value
+        self.keepdims = keepdims
         self.terminate_mask = terminate_mask
 
         self.supports_masking = True
         self.input_spec = None  # removed ndim restriction [InputSpec(ndim=3)]
 
     def compute_output_shape(self, input_shape):
-        return tuple(input_shape[:-2]) + (input_shape[-1],)
+        if self.keepdims:
+            return tuple(input_shape[:-2]) + (1, input_shape[-1])
+        else:
+            return tuple(input_shape[:-2]) + (input_shape[-1],)
 
     def compute_mask(self, inp, input_mask=None):
         if input_mask is None or self.terminate_mask:
@@ -95,7 +107,7 @@ class _KTextGlobalPooling(Layer):
 
         if K.ndim(input_mask) == K.ndim(inp) - 1:
             # For TensorFlow compatibility, cast mask to 'int8' before summing
-            return K.not_equal(K.sum(K.cast(input_mask, 'int8'), axis=-1), 0)
+            return K.not_equal(K.sum(K.cast(input_mask, 'int8'), axis=-1, keepdims=self.keepdims), 0)
         # elif input_mask.ndim < inp.ndim - 1:
         #     return input_mask
         else:
@@ -117,11 +129,11 @@ class KTextGlobalMaxPooling(_KTextGlobalPooling):
     """
     Global max pooling along 2nd last dimension, of the features in the last dimension.
     """
-    def __init__(self, default_value=LARGE_NEG, terminate_mask=False, **kwargs):
-        super().__init__(default_value, terminate_mask, **kwargs)
+    def __init__(self, default_value=LARGE_NEG, keepdims=False, terminate_mask=False, **kwargs):
+        super().__init__(default_value, keepdims, terminate_mask, **kwargs)
 
     def call(self, x, mask=None):
-        return masked_max(x, axis=-2, mask=mask, default_value=self.default_value)
+        return masked_max(x, axis=-2, mask=mask, default_value=self.default_value, keepdims=self.keepdims)
 # /
 
 
@@ -129,11 +141,11 @@ class KTextGlobalMinPooling(_KTextGlobalPooling):
     """
     Global min pooling along 2nd last dimension, of the features in the last dimension.
     """
-    def __init__(self, default_value=LARGE_POS, terminate_mask=False, **kwargs):
-        super().__init__(default_value, terminate_mask, **kwargs)
+    def __init__(self, default_value=LARGE_POS, keepdims=False, terminate_mask=False, **kwargs):
+        super().__init__(default_value, keepdims, terminate_mask, **kwargs)
 
     def call(self, x, mask=None):
-        return masked_min(x, axis=-2, mask=mask, default_value=self.default_value)
+        return masked_min(x, axis=-2, mask=mask, default_value=self.default_value, keepdims=self.keepdims)
 # /
 
 
@@ -141,8 +153,11 @@ class KTextGlobalAvgPooling(_KTextGlobalPooling):
     """
     Global average pooling along 2nd last dimension, of the features in the last dimension.
     """
+    def __init__(self, keepdims=False, terminate_mask=False, **kwargs):
+        super().__init__(keepdims=keepdims, terminate_mask=terminate_mask, **kwargs)
+
     def call(self, x, mask=None):
-        return masked_avg(x, axis=-2, mask=mask)
+        return masked_avg(x, axis=-2, mask=mask, keepdims=self.keepdims)
 # /
 
 
@@ -344,7 +359,8 @@ class KTextAveragePooling1D(_KTextPooling1D):
                           padding, data_format):
         output = K.pool2d(inputs, pool_size, strides,
                           padding, data_format, pool_mode='avg')
-        # Compute the masked average.
+
+        # TODO: Compute the masked average.
 
         return output
 # /
@@ -355,31 +371,31 @@ class KTextAveragePooling1D(_KTextPooling1D):
 # =============================================================================
 
 
-def masked_max(x, axis=1, mask=None, default_value=-np.inf):
+def masked_max(x, axis=1, mask=None, keepdims=False, default_value=-np.inf):
     if mask is None:
-        return K.max(x, axis=axis, keepdims=False)
+        return K.max(x, axis=axis, keepdims=keepdims)
     else:
         if K.ndim(mask) == K.ndim(x) - 1:
             mask = K.expand_dims(mask, axis=-1)
         assert K.ndim(mask) == K.ndim(x)
 
-        return K.max(masked_where(mask, x, default_value), axis=axis, keepdims=False)
+        return K.max(masked_where(mask, x, default_value), axis=axis, keepdims=keepdims)
 
 
-def masked_min(x, axis=1, mask=None, default_value=np.inf):
+def masked_min(x, axis=1, mask=None, keepdims=False, default_value=np.inf):
     if mask is None:
-        return K.min(x, axis=axis, keepdims=False)
+        return K.min(x, axis=axis, keepdims=keepdims)
     else:
         if K.ndim(mask) == K.ndim(x) - 1:
             mask = K.expand_dims(mask, axis=-1)
         assert K.ndim(mask) == K.ndim(x)
 
-        return K.min(masked_where(mask, x, default_value), axis=axis, keepdims=False)
+        return K.min(masked_where(mask, x, default_value), axis=axis, keepdims=keepdims)
 
 
-def masked_avg(x, axis=1, mask=None):
+def masked_avg(x, axis=1, keepdims=False, mask=None):
     if mask is None:
-        return K.mean(x, axis=axis, keepdims=False)
+        return K.mean(x, axis=axis, keepdims=keepdims)
     else:
         if K.ndim(mask) == K.ndim(x) - 1:
             mask = K.expand_dims(mask, axis=-1)
@@ -388,6 +404,6 @@ def masked_avg(x, axis=1, mask=None):
         # mask is Boolean, so counts (sums) are Integers >= 0.
         # To avoid divide-by-zero ...
         # IF count is 0 THEN make it 1 because sum of (mask * x) will also be 0, and 0/1 = 0.
-        counts = K.maximum(1, K.sum(mask, axis=axis, keepdims=False))
+        counts = K.maximum(1, K.sum(mask, axis=axis, keepdims=keepdims))
 
-        return K.sum(mask * x, axis=axis, keepdims=False) / counts
+        return K.sum(mask * x, axis=axis, keepdims=keepdims) / counts
