@@ -1,14 +1,14 @@
 # KerasText: Text Processing Layers for Keras
 
-This package adds Keras ver. 2+ compliant layers for processing variable-sized text input, with support for masking.
+This package adds [Keras](https://keras.io) ver. 2+ compliant layers for processing variable-sized text input, with support for masking.
 
 ## Compatibility
 
 - **Python**: ver. 3+.
-- **Keras**: ver. 2+.
+- [**Keras**](https://keras.io): ver. 2+.
 - *Backends*:
-    - **Theano**: tested with ver. 0.9.0
-    - **TensorFlow**: tested with ver. 1.3.0
+    - [**Theano**](http://deeplearning.net/software/theano/): tested with ver. 0.9.0
+    - [**TensorFlow**](https://www.tensorflow.org): tested with ver. 1.3.0
     - **CNTK**: not supported.
 
 
