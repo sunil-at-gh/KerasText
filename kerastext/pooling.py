@@ -394,6 +394,7 @@ def masked_min(x, axis=1, mask=None, keepdims=False, default_value=np.inf):
 
 
 def masked_avg(x, axis=1, keepdims=False, mask=None):
+
     if mask is None:
         return K.mean(x, axis=axis, keepdims=keepdims)
     else:
@@ -404,6 +405,6 @@ def masked_avg(x, axis=1, keepdims=False, mask=None):
         # mask is Boolean, so counts (sums) are Integers >= 0.
         # To avoid divide-by-zero ...
         # IF count is 0 THEN make it 1 because sum of (mask * x) will also be 0, and 0/1 = 0.
-        counts = K.maximum(1, K.sum(mask, axis=axis, keepdims=keepdims))
+        counts = K.cast(K.maximum(1, K.sum(mask, axis=axis, keepdims=keepdims)), K.dtype(x))  # 'float32')
 
         return K.sum(mask * x, axis=axis, keepdims=keepdims) / counts
