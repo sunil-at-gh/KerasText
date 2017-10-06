@@ -48,9 +48,9 @@ def gather_from_last_axis(x, indices):
 def masked_where(mask, x, default):
     """
     :param mask: Of same ndim as x. Last dimension may be 1.
-    :param x: a tensor
-    :param default: a scalar
-    :return:
+    :param x: a tensor, the value to return where mask is True
+    :param default: a scalar, the value to return where mask is False
+    :return: same shape as x
     """
     if K.backend() == 'theano':
         return K.switch(mask, x, default)
